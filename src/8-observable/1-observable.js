@@ -2,30 +2,41 @@
 const observable = function (base) {
   let listeners = [];
 
-  base.addEventListener = function (type, listener) {
+  base.addEventListener = function (type, listener, order) {
     if (!listener) {
       listener = type;
       type = 'default';
     }
-    listeners.push({ type, listener });
+    listeners.push({ type, listener, order });
   }
 
-  base.listener = function (argument) {
+  base.listener = function () {
     return listeners[0].listener;
   }
 
-  base.dispatchEvent = function (type, argument) {
-    if (!argument) {
-      argument = type;
+  base.dispatchEvent = function (type, ...args) {
+    if (!args.length) {
+      args = [type];
       type = 'default';
     }
-    try {
-      listeners.filter(listener => listener.type === type)
-        .forEach(l => l.listener(argument));
+    listeners
+      .sort((l1, l2) => l2.order - l1.order)  //sorting on 2 columns
+      .filter(listener => listener.type === type)
+      .forEach(l => {
+        try {
+          return l.listener(...args) === false;
+        } catch (e) {
+          //empty
+        }
+      });
+  }
+
+  //TODO
+  base.createObservableProperty = function (name) {
+    base['get' + name] = function () {
+      return name;
     }
-    catch (e) {
-      listener('default');
-    }
+    addEventListener(name, base['get' + name], 1);
   }
 
   return base;
